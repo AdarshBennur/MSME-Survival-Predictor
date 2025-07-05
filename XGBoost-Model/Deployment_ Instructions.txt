@@ -1,0 +1,31 @@
+SOPHISTICATED MSME SURVIVAL PREDICTION MODEL
+===========================================
+        
+Model Name: sophisticated_ensemble_model.pkl
+Location: msme-survival-predictor/backend/ml/models/
+        
+DEPLOYMENT INSTRUCTIONS:
+-----------------------
+1. Load model: pickle.load('ensemble_trained_model.pkl')
+2. Load scaler: pickle.load('scaler.pkl')
+3. Load encoders: pickle.load('label_encoders.pkl')
+4. Load features: pickle.load('feature_names.pkl')
+        
+PERFORMANCE METRICS:
+-------------------
+        
+Best Model: LightGBM
+ROC-AUC: 0.9211
+Accuracy: 0.9046
+Precision: 0.9931
+Recall: 0.7785
+F1-Score: 0.8728
+        
+FEATURES:
+--------
+- Advanced Feature Engineering: 5 features
+- Class Imbalance Handling: SMOTE-Tomek
+- Ensemble Methods: Multiple algorithms
+- Hyperparameter Tuning: GridSearch CV
+- Production Ready: YES
+        

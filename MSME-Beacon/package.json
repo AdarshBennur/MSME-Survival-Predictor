@@ -1,0 +1,23 @@
+{
+  "name": "msme-survival-predictor",
+  "version": "1.0.0",
+  "description": "AI-powered risk assessment for small businesses",
+  "main": "index.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "server": "cd backend && PORT=5001 node server.js",
+    "server-dev": "cd backend && PORT=5001 nodemon server.js --ignore node_modules",
+    "client": "cd frontend && npm start",
+    "dev": "concurrently --kill-others \"npm run server-dev\" \"npm run client\"",
+    "backend-only": "cd backend && PORT=5001 node server.js",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "test-backend": "curl http://localhost:5001/api/test",
+    "test-setup": "node test_fixed_setup.js",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix frontend && npm run build --prefix frontend"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^7.6.0"
+  }
+} 
