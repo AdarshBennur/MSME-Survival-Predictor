@@ -4,8 +4,13 @@ require('dotenv').config();
 // Function to connect to MongoDB Atlas
 const connectDB = async () => {
   try {
-    // Use environment variable or fallback to direct connection string with explicit database name
-    const MONGO_URI = process.env.MONGODB_URI || 'mongodb+srv://adimsme:msme000@msme.bvlwyvs.mongodb.net/test?retryWrites=true&w=majority&appName=msme';
+    // Use environment variable for MongoDB URI
+    const MONGO_URI = process.env.MONGODB_URI;
+    
+    if (!MONGO_URI) {
+      console.warn('⚠️ MONGODB_URI environment variable not set. Database features will be unavailable.');
+      return null;
+    }
     
     const conn = await mongoose.connect(MONGO_URI, {
       useNewUrlParser: true,
