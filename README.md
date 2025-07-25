@@ -309,6 +309,14 @@ For a more professional look, you can set up custom domains for your services:
 - Enable HTTPS for all services
 - Regularly update dependencies to patch security vulnerabilities
 
+## Screenshots
+
+![Landing Page](MSME-Beacon/images/1.%20LandingPage.png)
+![Dashboard](MSME-Beacon/images/2.%20Dashboard.png)
+![Risk Prediction](MSME-Beacon/images/3.%20RiskPrediction.png)
+![Recommendations](MSME-Beacon/images/4.%20Recommendations.png)
+![Insights](MSME-Beacon/images/5.%20Insights.png)
+
 ---
 
 For additional support or questions, please open an issue on the GitHub repository.
