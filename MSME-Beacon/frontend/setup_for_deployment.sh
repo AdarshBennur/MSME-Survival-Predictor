@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # MSME Beacon Frontend - Deployment Setup Script
 # ============================================
@@ -34,13 +35,25 @@ cat > vercel.json << EOL
   "builds": [
     {
       "src": "package.json",
-      "use": "@vercel/node"
+      "use": "@vercel/react"
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/"
+      "dest": "/index.html"
     }
   ],
   "env": {
@@ -50,8 +63,8 @@ cat > vercel.json << EOL
 EOL
 
 # Create .env.production file for production environment variables
-echo "📝 Creating .env.production file..."
-cat > .env.production << EOL
+echo "📝 Creating .env.production.example file..."
+cat > .env.production.example << EOL
 # Backend API URL (replace with your actual backend URL when deployed)
 REACT_APP_API_URL=https://your-backend-url.onrender.com/api
 EOL
@@ -75,6 +88,6 @@ echo ""
 echo "📖 To test locally:"
 echo "   npm start"
 echo ""
-echo "⚠️ Important: Before deploying to production, update the REACT_APP_API_URL"
-echo "   in .env.production and vercel.json with your actual backend URL."
+echo "⚠️ Important: Before deploying to production, create a .env.production file"
+echo "   from the .env.production.example template with your actual backend URL."
 echo "" 

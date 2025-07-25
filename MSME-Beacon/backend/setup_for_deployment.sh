@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # MSME Beacon Backend - Deployment Setup Script
 # ============================================
@@ -42,6 +43,7 @@ fi
 echo "📝 Creating build script for Render..."
 cat > render_build.sh << EOL
 #!/bin/bash
+set -euo pipefail
 # This script runs during the build process on Render
 
 # Install dependencies
@@ -55,10 +57,11 @@ chmod +x render_build.sh
 echo "📝 Creating start script for Render..."
 cat > render_start.sh << EOL
 #!/bin/bash
+set -euo pipefail
 # This script runs when the service starts on Render
 
-# Start the Node.js application
-node server.js
+# Start the Node.js application with exec to properly handle UNIX signals
+exec node server.js
 EOL
 
 # Make the start script executable

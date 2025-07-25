@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # MSME Survival Predictor - Deployment Preparation Script
 # ======================================================

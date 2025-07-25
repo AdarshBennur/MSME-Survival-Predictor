@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # MSME Risk Prediction API - Deployment Setup Script
 # ==================================================
@@ -51,16 +52,18 @@ cd ..
 echo "📝 Creating build script for Render..."
 cat > render_build.sh << EOL
 #!/bin/bash
+set -euo pipefail
 # This script runs during the build process on Render
 
-# Create virtual environment
-python -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate
+# Render automatically creates a Python environment
+# We'll install dependencies directly without creating a local venv
+# which could cause issues with Render's runtime environment
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Verify installation of key packages
+python -c "import fastapi, uvicorn, pandas, numpy, xgboost; print('Required packages verified')"
 EOL
 
 # Make the build script executable
@@ -70,14 +73,15 @@ chmod +x render_build.sh
 echo "📝 Creating start script for Render..."
 cat > render_start.sh << EOL
 #!/bin/bash
+set -euo pipefail
 # This script runs when the service starts on Render
 
-# Activate virtual environment
-source .venv/bin/activate
+# Render provides its own Python environment
+# No need to activate a local venv
 
 # Start the FastAPI application
 cd ml_api
-uvicorn main:app --host 0.0.0.0 --port \$PORT
+exec uvicorn main:app --host 0.0.0.0 --port \$PORT
 EOL
 
 # Make the start script executable
