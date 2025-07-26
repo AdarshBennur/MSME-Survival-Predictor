@@ -2,21 +2,37 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const connectDB = require('./config/db');
+const mongoose = require('mongoose'); // Added missing import for mongoose
 
 console.log('🚀 Starting MSME Beacon Backend Server...');
 
 // Connect to MongoDB Atlas
-connectDB().catch(err => {
-  console.error('❌ Failed to connect to MongoDB Atlas:', err.message);
-  console.log('ℹ️  Server will continue running but database features will be unavailable');
-});
+connectDB()
+  .then(conn => {
+    if (conn) {
+      console.log('✅ MongoDB connection successful!');
+      console.log(`🏠 Connected to database: ${conn.connection.name}`);
+      console.log(`🔌 Connection state: ${conn.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+    } else {
+      console.error('⚠️ MongoDB connection returned null. Check your MONGODB_URI environment variable.');
+    }
+  })
+  .catch(err => {
+    console.error('❌ Failed to connect to MongoDB Atlas:', err.message);
+    console.log('ℹ️  Server will continue running but database features will be unavailable');
+  });
 
 // Create Express app
 const app = express();
 
-// Enable CORS for all origins (development)
+// Enable CORS for all origins (development and production)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001',
+    'https://msme-survival-predictor.vercel.app',
+    process.env.FRONTEND_URL // Allow the frontend URL from environment variable
+  ].filter(Boolean), // Remove any undefined/null values
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -28,7 +44,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin || 'Unknown'}`);
   next();
 });
 
@@ -49,32 +65,139 @@ app.use('/api/insights', insightsRoutes);
 // Test route to check if server is working
 app.get('/api/test', (req, res) => {
   console.log('✅ Test endpoint hit');
+  
+  // Check MongoDB connection status
+  const dbStatus = {
+    connected: mongoose.connection.readyState === 1,
+    state: mongoose.connection.readyState,
+    stateText: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown'
+  };
+  
   res.json({ 
     message: 'Backend server is running perfectly!', 
     timestamp: new Date().toISOString(),
     status: 'healthy',
-    database: 'MongoDB Atlas Connected',
-          endpoints: {
-        test: '/api/test',
-        auth: {
-          register: '/api/users/register',
-          login: '/api/users/login',
-          profile: '/api/users/profile'
-        },
-        business: '/api/business',
-        risk: '/api/risk',
-        recommendations: '/api/recommendations',
-        insights: '/api/insights'
-      }
+    database: dbStatus,
+    environment: {
+      node_env: process.env.NODE_ENV || 'development',
+      mongodb_uri_set: !!process.env.MONGODB_URI,
+      frontend_url: process.env.FRONTEND_URL || 'Not set'
+    },
+    endpoints: {
+      test: '/api/test',
+      auth: {
+        register: '/api/users/register',
+        login: '/api/users/login',
+        profile: '/api/users/profile'
+      },
+      business: '/api/business',
+      risk: '/api/risk',
+      recommendations: '/api/recommendations',
+      insights: '/api/insights'
+    }
   });
+});
+
+// MongoDB connection test route
+app.get('/api/db-test', (req, res) => {
+  console.log('📊 MongoDB connection test endpoint hit');
+  
+  // Check MongoDB connection status
+  const dbStatus = {
+    connected: mongoose.connection.readyState === 1,
+    state: mongoose.connection.readyState,
+    stateText: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown'
+  };
+  
+  // Get MongoDB connection details
+  const connectionDetails = {
+    host: mongoose.connection.host || 'Not connected',
+    name: mongoose.connection.name || 'Not connected',
+    readyState: mongoose.connection.readyState,
+    models: Object.keys(mongoose.models),
+    mongodbUriSet: !!process.env.MONGODB_URI
+  };
+  
+  if (dbStatus.connected) {
+    // Try to perform a simple operation to verify connection is working
+    try {
+      // Count users collection documents
+      mongoose.connection.db.collection('users').countDocuments()
+        .then(count => {
+          res.json({
+            success: true,
+            message: 'MongoDB connection is working properly',
+            timestamp: new Date().toISOString(),
+            dbStatus,
+            connectionDetails,
+            testOperation: {
+              success: true,
+              collection: 'users',
+              documentCount: count
+            }
+          });
+        })
+        .catch(err => {
+          res.json({
+            success: false,
+            message: 'MongoDB connection exists but operation failed',
+            error: err.message,
+            timestamp: new Date().toISOString(),
+            dbStatus,
+            connectionDetails,
+            testOperation: {
+              success: false,
+              error: err.message
+            }
+          });
+        });
+    } catch (err) {
+      res.json({
+        success: false,
+        message: 'MongoDB connection exists but test operation failed',
+        error: err.message,
+        timestamp: new Date().toISOString(),
+        dbStatus,
+        connectionDetails
+      });
+    }
+  } else {
+    res.json({
+      success: false,
+      message: 'MongoDB is not connected',
+      timestamp: new Date().toISOString(),
+      dbStatus,
+      connectionDetails,
+      possibleIssues: [
+        'MONGODB_URI environment variable is not set correctly',
+        'Network connectivity issues to MongoDB Atlas',
+        'MongoDB Atlas IP whitelist restrictions',
+        'Invalid credentials in connection string',
+        'Database name in connection string is incorrect'
+      ],
+      troubleshooting: [
+        'Check MONGODB_URI environment variable in Render dashboard',
+        'Ensure MongoDB Atlas cluster is running',
+        'Verify that your IP is whitelisted in MongoDB Atlas',
+        'Check username and password in connection string'
+      ]
+    });
+  }
 });
 
 // Health check
 app.get('/health', (req, res) => {
+  // Check MongoDB connection status
+  const dbStatus = {
+    connected: mongoose.connection.readyState === 1,
+    state: mongoose.connection.readyState,
+    stateText: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown'
+  };
+  
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    database: 'MongoDB Atlas'
+    database: dbStatus
   });
 });
 
@@ -101,9 +224,13 @@ app.post('/api/risk/predict-demo', async (req, res) => {
     
     console.log('📡 Attempting to connect to ML service...');
     
+    // Get ML service URL from environment variable or use default
+    const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+    console.log(`🔗 Using ML service URL: ${ML_SERVICE_URL}/predict`);
+    
     // Try to connect to ML service
     try {
-      const mlResponse = await axios.post('http://localhost:8000/predict', businessData, {
+      const mlResponse = await axios.post(`${ML_SERVICE_URL}/predict`, businessData, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 10000
       });
@@ -168,7 +295,7 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('');
@@ -176,6 +303,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on: http://localhost:${PORT}`);
   console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
   console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+  console.log(`🧪 DB Test endpoint: http://localhost:${PORT}/api/db-test`);
   console.log(`🎯 Risk prediction: http://localhost:${PORT}/api/risk/predict-demo`);
   console.log('🌐 CORS enabled for frontend connections');
   console.log('✅ Ready to receive requests!');
