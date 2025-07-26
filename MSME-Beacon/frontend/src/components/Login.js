@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -7,6 +8,7 @@ const Login = () => {
     password: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -19,31 +21,34 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
     // Form validation
     if (!formData.email || !formData.password) {
       setError('All fields are required');
+      setLoading(false);
       return;
     }
 
     try {
-      // Make actual API call to backend for authentication
-      const response = await fetch('http://localhost:5001/api/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
+      // Test backend connection first
+      try {
+        await api.get('/test');
+        console.log('✅ Backend connection successful');
+      } catch (connError) {
+        console.error('❌ Backend connection failed:', connError);
+        setError('Unable to connect to server. Please try again later.');
+        setLoading(false);
+        return;
+      }
+      
+      // Make API call to backend for authentication
+      const response = await api.post('/users/login', {
+        email: formData.email,
+        password: formData.password
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Authentication failed');
-      }
+      const data = response.data;
       
       if (data.success && data.user) {
         // Store user data and token in localStorage
@@ -53,8 +58,24 @@ const Login = () => {
         setError('Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setError(err.message || 'Invalid email or password');
       console.error('Login error:', err);
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(err.response.data.message || 'Invalid email or password');
+        console.error('Server error response:', err.response.data);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your internet connection.');
+        console.error('No response received:', err.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError('An error occurred. Please try again later.');
+        console.error('Request error:', err.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,9 +152,12 @@ const Login = () => {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={loading}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
               >
-                Log in
+                {loading ? 'Logging in...' : 'Log in'}
               </button>
             </div>
           </form>
@@ -151,6 +175,7 @@ const Login = () => {
             <div className="mt-6">
               <button
                 onClick={handleGoogleLogin}
+                disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <span className="mr-2">Google</span>

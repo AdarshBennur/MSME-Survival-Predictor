@@ -3,6 +3,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authConfig = require('../config/authConfig');
 
+// Check if MongoDB is connected
+const checkMongoDBConnection = () => {
+  if (mongoose.connection.readyState !== 1) {
+    console.error('❌ MongoDB is not connected. User model operations will fail.');
+    return false;
+  }
+  return true;
+};
+
 const UserSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -167,32 +176,84 @@ const UserSchema = new mongoose.Schema({
 
 // Encrypt password using bcrypt
 UserSchema.pre('save', async function(next) {
+  // Check MongoDB connection
+  if (!checkMongoDBConnection()) {
+    return next(new Error('MongoDB connection is not available'));
+  }
+
   // Only hash the password if it's modified (or new)
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
 
   try {
+    console.log(`🔒 Hashing password for user: ${this.email}`);
+    
+    // Generate salt
     const salt = await bcrypt.genSalt(authConfig.saltRounds);
-    this.password = await bcrypt.hash(this.password, salt);
+    if (!salt) {
+      throw new Error('Failed to generate salt for password hashing');
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(this.password, salt);
+    if (!hashedPassword) {
+      throw new Error('Failed to hash password');
+    }
+    
+    // Set hashed password
+    this.password = hashedPassword;
+    console.log(`✅ Password hashed successfully for user: ${this.email}`);
     next();
   } catch (error) {
+    console.error(`❌ Password hashing error for user ${this.email}:`, error);
     next(error);
   }
 });
 
 // Compare entered password with hashed password in database
 UserSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  // Check MongoDB connection
+  if (!checkMongoDBConnection()) {
+    throw new Error('MongoDB connection is not available');
+  }
+
+  try {
+    if (!this.password) {
+      console.error('❌ User has no password stored');
+      return false;
+    }
+    
+    const isMatch = await bcrypt.compare(enteredPassword, this.password);
+    console.log(`🔐 Password match result for user ${this.email}: ${isMatch ? 'Success' : 'Failed'}`);
+    return isMatch;
+  } catch (error) {
+    console.error(`❌ Password comparison error for user ${this.email}:`, error);
+    throw error;
+  }
 };
 
 // Generate JWT token
 UserSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign(
-    { id: this._id }, 
-    authConfig.jwtSecret, 
-    { expiresIn: authConfig.jwtExpire }
-  );
+  // Check if JWT secret is available
+  if (!authConfig.jwtSecret) {
+    console.error('❌ JWT secret is not available');
+    throw new Error('JWT configuration error');
+  }
+
+  try {
+    const token = jwt.sign(
+      { id: this._id }, 
+      authConfig.jwtSecret, 
+      { expiresIn: authConfig.jwtExpire }
+    );
+    
+    console.log(`🔑 JWT token generated for user: ${this.email}`);
+    return token;
+  } catch (error) {
+    console.error(`❌ JWT token generation error for user ${this.email}:`, error);
+    throw error;
+  }
 };
 
 module.exports = mongoose.model('User', UserSchema, 'users'); 

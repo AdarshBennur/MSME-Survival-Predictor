@@ -1,24 +1,60 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const authConfig = require('../config/authConfig');
+const mongoose = require('mongoose');
+
+// Check if MongoDB is connected
+const checkMongoDBConnection = () => {
+  if (mongoose.connection.readyState !== 1) {
+    console.error('❌ MongoDB is not connected. User controller operations will fail.');
+    return false;
+  }
+  return true;
+};
 
 // @desc    Register a new user
 // @route   POST /api/users/register
 // @access  Public
 const registerUser = async (req, res) => {
+  // Check MongoDB connection
+  if (!checkMongoDBConnection()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection unavailable. Please try again later.',
+      error: 'database_unavailable'
+    });
+  }
+
+  console.log('📝 User registration request received');
+  
   try {
     const { name, email, password, businessName, industry, location, businessSize } = req.body;
 
-    // Check if user already exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    // Validate required fields
+    if (!name || !email || !password || !businessName) {
+      console.error('❌ Registration failed: Missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: 'Please provide all required fields',
+        error: 'missing_fields'
+      });
+    }
+
+    // Check if user already exists
+    console.log(`🔍 Checking if user with email ${email} already exists`);
+    const userExists = await User.findOne({ email });
+    
+    if (userExists) {
+      console.error(`❌ Registration failed: User with email ${email} already exists`);
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists',
+        error: 'user_exists'
       });
     }
 
     // Create new user
+    console.log(`✅ Creating new user: ${email}`);
     const user = await User.create({
       name,
       email,
@@ -30,6 +66,11 @@ const registerUser = async (req, res) => {
     });
 
     if (user) {
+      // Generate JWT token
+      const token = user.getSignedJwtToken();
+      
+      console.log(`✅ User registration successful: ${email}`);
+      
       res.status(201).json({
         success: true,
         user: {
@@ -37,20 +78,40 @@ const registerUser = async (req, res) => {
           name: user.name,
           email: user.email,
           businessName: user.businessName,
-          token: user.getSignedJwtToken()
+          token
         }
       });
     } else {
+      console.error('❌ Registration failed: User creation returned null');
       res.status(400).json({
         success: false,
-        message: 'Invalid user data'
+        message: 'Invalid user data',
+        error: 'user_creation_failed'
       });
     }
   } catch (error) {
-    console.error('Register user error:', error);
+    console.error('❌ Register user error:', error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: messages,
+        error: 'validation_error'
+      });
+    } else if (error.code === 11000) { // Duplicate key error
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use',
+        error: 'duplicate_email'
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error during registration',
       error: error.message
     });
   }
@@ -60,38 +121,62 @@ const registerUser = async (req, res) => {
 // @route   POST /api/users/login
 // @access  Public
 const loginUser = async (req, res) => {
+  // Check MongoDB connection
+  if (!checkMongoDBConnection()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection unavailable. Please try again later.',
+      error: 'database_unavailable'
+    });
+  }
+
+  console.log('🔑 User login request received');
+  
   try {
     const { email, password } = req.body;
 
     // Validate email & password
     if (!email || !password) {
+      console.error('❌ Login failed: Missing email or password');
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password'
+        message: 'Please provide email and password',
+        error: 'missing_credentials'
       });
     }
 
     // Check for user (include password in this query)
+    console.log(`🔍 Looking up user: ${email}`);
     const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
+      console.error(`❌ Login failed: User with email ${email} not found`);
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid credentials',
+        error: 'invalid_credentials'
       });
     }
 
     // Check if password matches
+    console.log(`🔐 Verifying password for user: ${email}`);
     const isMatch = await user.matchPassword(password);
     
     if (!isMatch) {
+      console.error(`❌ Login failed: Invalid password for user ${email}`);
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid credentials',
+        error: 'invalid_credentials'
       });
     }
 
-    // Password matches, return user data and token
+    // Password matches, generate token
+    const token = user.getSignedJwtToken();
+    
+    console.log(`✅ User login successful: ${email}`);
+    
+    // Return user data and token
     res.json({
       success: true,
       user: {
@@ -99,14 +184,14 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         businessName: user.businessName,
-        token: user.getSignedJwtToken()
+        token
       }
     });
   } catch (error) {
-    console.error('Login user error:', error);
+    console.error('❌ Login user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error during login',
       error: error.message
     });
   }

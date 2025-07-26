@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ const Signup = () => {
     businessName: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -22,44 +24,49 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
     // Form validation
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.businessName) {
       setError('All fields are required');
+      setLoading(false);
       return;
     }
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
       return;
     }
     
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      setLoading(false);
       return;
     }
 
     try {
-      // Make actual API call to backend for registration
-      const response = await fetch('http://localhost:5001/api/users/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          businessName: formData.businessName,
-          businessSize: 'Small (10-49 employees)' // Default business size with correct enum value
-        })
+      // Test backend connection first
+      try {
+        await api.get('/test');
+        console.log('✅ Backend connection successful');
+      } catch (connError) {
+        console.error('❌ Backend connection failed:', connError);
+        setError('Unable to connect to server. Please try again later.');
+        setLoading(false);
+        return;
+      }
+
+      // Make API call to backend for registration
+      const response = await api.post('/users/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        businessName: formData.businessName,
+        businessSize: 'Small (10-49 employees)' // Default business size with correct enum value
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
+      const data = response.data;
       
       if (data.success && data.user) {
         // Store user data and token in localStorage
@@ -69,8 +76,24 @@ const Signup = () => {
         setError('Registration failed. Please try again.');
       }
     } catch (err) {
-      setError(err.message || 'Failed to create account');
       console.error('Registration error:', err);
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(err.response.data.message || 'Registration failed');
+        console.error('Server error response:', err.response.data);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your internet connection.');
+        console.error('No response received:', err.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError('An error occurred. Please try again later.');
+        console.error('Request error:', err.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,9 +215,12 @@ const Signup = () => {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={loading}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
               >
-                Sign up
+                {loading ? 'Signing up...' : 'Sign up'}
               </button>
             </div>
           </form>
@@ -212,6 +238,7 @@ const Signup = () => {
             <div className="mt-6">
               <button
                 onClick={handleGoogleSignup}
+                disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <span className="mr-2">Google</span>
