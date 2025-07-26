@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "buildCommand": "cd MSME-Beacon/frontend && npm install && npm run build",
+  "outputDirectory": "MSME-Beacon/frontend/build",
+  "routes": [
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "/manifest.json", "dest": "/manifest.json" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "env": {
+    "REACT_APP_API_URL": "https://msme-backend-service.onrender.com/api"
+  }
+} 
