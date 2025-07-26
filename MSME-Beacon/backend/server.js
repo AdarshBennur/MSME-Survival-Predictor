@@ -31,7 +31,8 @@ app.use(cors({
     'http://localhost:3000', 
     'http://localhost:3001',
     'https://msme-survival-predictor.vercel.app',
-    'https://msme-beacon-backend.onrender.com',
+    'https://msme-backend-service.onrender.com',
+    'https://msme-ml-service.onrender.com',
     process.env.FRONTEND_URL // Allow the frontend URL from environment variable
   ].filter(Boolean), // Remove any undefined/null values
   credentials: true,
