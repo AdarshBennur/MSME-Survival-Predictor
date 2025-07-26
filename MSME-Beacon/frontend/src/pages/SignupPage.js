@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import api from '../utils/api'; // Import api utility instead of hardcoding URL
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -69,26 +70,20 @@ const SignupPage = () => {
       console.log('🚀 Attempting registration for:', formData.email);
       
       // Make actual API call to backend for registration
-      const response = await fetch('http://localhost:5001/api/users/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          businessName: formData.businessName,
-          industry: 'Technology', // Default industry
-          location: 'India', // Default location
-          businessSize: 'Small (10-49 employees)' // Default size with correct enum value
-        })
+      const response = await api.post('/users/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        businessName: formData.businessName,
+        industry: 'Technology', // Default industry
+        location: 'India', // Default location
+        businessSize: 'Small (10-49 employees)' // Default size with correct enum value
       });
       
-      const data = await response.json();
+      const data = response.data;
       console.log('📡 Registration response:', data);
       
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Registration failed');
       }
       
@@ -105,7 +100,21 @@ const SignupPage = () => {
       }
     } catch (err) {
       console.error('❌ Registration error:', err);
-      setError(err.message || 'Failed to create account');
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(err.response.data.message || 'Registration failed');
+        console.error('Server error response:', err.response.data);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your internet connection.');
+        console.error('No response received:', err.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(err.message || 'An error occurred. Please try again later.');
+        console.error('Request error:', err.message);
+      }
       setIsLoading(false);
     }
   };

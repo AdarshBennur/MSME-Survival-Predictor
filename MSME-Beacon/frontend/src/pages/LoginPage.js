@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import api from '../utils/api'; // Import api utility instead of hardcoding URL
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -56,21 +57,15 @@ const LoginPage = () => {
       console.log('🔐 Attempting login for:', formData.email);
       
       // Make actual API call to backend for authentication
-      const response = await fetch('http://localhost:5001/api/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
+      const response = await api.post('/users/login', {
+        email: formData.email,
+        password: formData.password
       });
       
-      const data = await response.json();
+      const data = response.data;
       console.log('📡 Login response:', data);
       
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Authentication failed');
       }
       
@@ -87,7 +82,21 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error('❌ Login error:', err);
-      setError(err.message || 'Invalid email or password');
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(err.response.data.message || 'Login failed');
+        console.error('Server error response:', err.response.data);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your internet connection.');
+        console.error('No response received:', err.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(err.message || 'Invalid email or password');
+        console.error('Request error:', err.message);
+      }
       setIsLoading(false);
     }
   };

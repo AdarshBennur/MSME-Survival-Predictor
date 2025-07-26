@@ -31,11 +31,12 @@ app.use(cors({
     'http://localhost:3000', 
     'http://localhost:3001',
     'https://msme-survival-predictor.vercel.app',
+    'https://msme-beacon-backend.onrender.com',
     process.env.FRONTEND_URL // Allow the frontend URL from environment variable
   ].filter(Boolean), // Remove any undefined/null values
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 }));
 
 // Parse JSON requests
